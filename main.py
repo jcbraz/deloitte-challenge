@@ -2,7 +2,6 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 import faiss
-import logging
 from openai import AzureOpenAI
 from src.services.models.embeddings import Embeddings
 from src.services.vectorial_db.faiss_index import FAISSIndex
@@ -25,22 +24,16 @@ def rag_chatbot(llm: LLM, input_text:str, history: list, index: FAISSIndex):
         tuple: A tuple containing the AI's response and the updated conversation history.
     """
 
-    #TODO Retrieve context from the FAISS Index
     context = index.retrieve_chunks(query=input_text, num_chunks=5)
     
-    #TODO Pass retrieve context to the LLM as well as history
     stream_response = llm.get_response(history=history, context=context, user_input=input_text)
 
-    #TODO History management: add user query and response to history
-    if stream_response:
-        eco_guide_response = "ECO-GUIDE: " + stream_response
-        history.append("User: " + input_text)
-        history.append(eco_guide_response)
-        
-        return eco_guide_response, history 
+    history.append({"role": "user", "content": input_text})
+    history.append({"role":"assistant", "content": stream_response})
 
-    logging.error("Stream response came out blank!")
-    return None
+
+    return "ECO-GUIDE:", history 
+
 
 def main():
     """Main function to run the chatbot."""
