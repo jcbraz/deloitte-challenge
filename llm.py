@@ -1,6 +1,9 @@
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 from openai import AzureOpenAI
 import os
-
+import logging
 
 class LLM():
     """Handles interactions with the Azure OpenAI LLM (Large Language Model).
@@ -21,10 +24,10 @@ class LLM():
         api_version = os.getenv("AZURE_LLM_API_VERSION")
 
         self.client = AzureOpenAI(
-            azure_endpoint=azure_endpoint,
-            azure_deployment=azure_deployment,
-            api_version=api_version,
-            api_key=api_key
+            azure_endpoint="https://gen-ai-tech-experience.openai.azure.com/",
+            azure_deployment="gpt-4o",
+            api_version="2024-08-01-preview",
+            api_key="AVwjFRgJ4lpnHFGfDcIaOQe9YjYHso4Kpks9IizUbrP9sbZ1viTPJQQJ99AKACfhMk5XJ3w3AAABACOGFTXR"
         )
         self.model_name = os.getenv("AZURE_LLM_MODEL_NAME")
 
@@ -58,7 +61,8 @@ class LLM():
         """
 
 
-    def get_response(self, history, context, user_input):
+
+    def get_response(self, history: list[str], context: str, user_input: str):
         """Generates a response from the LLM.
 
         Args:
@@ -70,7 +74,47 @@ class LLM():
             str: The LLM's generated response.
         """
         #XXX: NOT IMPLEMENTED. Use self.client.chat.completions to create the chatbot response
+        try:
+            history_str = '\n'.join(history)
+            final_user_str = f"""
+                Answer to the following user input based on the context and history.
 
-        #TODO (EXTRA: stream LLM response)
+                The history:
+                {history_str}
 
-        return "<AI RESPONSE PLACEHOLDER>"
+                The context:
+                {context}
+
+                The user input:
+                {user_input}
+            """
+
+            stream = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": self.system_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": final_user_str
+                    }   
+                ],
+                stream=True,
+            )
+
+            response_text = ""
+            for index, chunk in enumerate(stream):
+                if index > 0:
+                    content = chunk.choices[0].delta.content
+                    if content:
+                        response_text += content
+
+            return response_text
+
+        except Exception as e:
+            logging.error(e)
+            return None
+        
+
